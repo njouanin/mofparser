@@ -1,0 +1,8 @@
+== MOF parser library ==
+This project provides a library for parsing file written using the [http://www.dmtf.org/education/mof MOF 2.3 language] specifications.
+
+=== Building ===
+ $mvn clean package
+ 
+=== Using ===
+Add <code>org.escapek:mofparser:0.3</code> to your project dependencies
