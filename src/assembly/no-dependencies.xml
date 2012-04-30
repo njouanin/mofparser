@@ -1,0 +1,29 @@
+<assembly>
+	<id>no-dependencies</id>
+	<formats>
+		<format>zip</format>
+	</formats>
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<fileSets>
+		<fileSet>
+			<directory>.</directory>
+			<outputDirectory></outputDirectory>
+			<useDefaultExcludes>true</useDefaultExcludes>
+			<excludes>
+				<exclude>**/target/**</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<directory>target</directory>
+			<outputDirectory>dist/</outputDirectory>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+		</fileSet>
+		<!-- docs -->
+		<fileSet>
+			<directory>/target/site</directory>
+            <outputDirectory>docs</outputDirectory>
+        </fileSet>
+	</fileSets>
+</assembly>

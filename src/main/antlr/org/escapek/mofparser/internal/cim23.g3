@@ -1,0 +1,421 @@
+/**
+ * Copyright 2008 EscapeK
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *     
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, 
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ * See the License for the specific language governing permissions and 
+ * limitations under the License.
+ * 
+ * --------------------------------------------------------------------------
+ * $Id$
+ * --------------------------------------------------------------------------
+ *
+ * This is a complete CIM v2.3 meta-model parser, based on an ANTLR 3 grammar syntax.
+ * It makes use of the available DMTF MOF syntax grammar description, this should be LL(1) parseable
+ * Parser output is a generated AST tree which can be walked to extract data.
+ * 
+ * Token and literrals rules MUST be written in lowercase in this grammar. Streams parsed by this
+ * grammar must be read by a case insensitive String stream.
+ * 
+ */
+grammar cim23;
+
+options {
+	output=AST;
+ 	ASTLabelType=CommonTree;
+  }
+
+tokens {
+	CLASS		=	'class';
+	PRAGMA		=	'#pragma';
+	QUALIFIER	=	'qualifier';
+	SCOPE		=	'scope';
+	FLAVOR		=	'flavor';
+	ASSOCIATION	= 	'association';
+	INDICATION	= 	'indication';
+	PROPERTY	= 	'property';
+	SCHEMA		= 	'schema';
+	Type;
+	Array;
+	Qualifiers;
+	SuperClass;
+	Class;
+	Property;
+	Reference;
+	Object;
+	Method;
+	Returns;
+	Parameter;
+	Default;
+	Instance;
+	Alias;
+	Value;
+	CompilerDirective;
+}
+
+@header {
+package org.escapek.mofparser.internal;
+
+import java.lang.String;
+}
+@lexer::header {
+package org.escapek.mofparser.internal;
+}
+
+mofSpecification
+	:	mofProduction+			
+	;
+
+mofProduction
+	:	compilerDirective| 
+		classDeclaration |
+		qualifierDeclaration |
+		instanceDeclaration
+	;
+
+compilerDirective
+	:	PRAGMA pragmaName '(' pragmaParameter ')' -> ^(CompilerDirective pragmaName pragmaParameter)
+	;
+		
+	
+pragmaName
+	:	 IDENTIFIER
+	;
+
+pragmaParameter
+	:	STRING_VALUE
+	;
+
+classDeclaration
+	:	(qualifierList)?
+		CLASS className (scl=superClass)?
+		'{' classFeature* '}' ';'
+		-> ^(Class ^(className ^(SuperClass $scl)? (qualifierList)?  ^(classFeature)*))
+	;
+
+className
+	:	IDENTIFIER
+	;
+
+alias	:	AS aliasIdentifier -> aliasIdentifier
+	;
+	
+aliasIdentifier
+	:	'$' IDENTIFIER  -> IDENTIFIER // NO whitespace !
+	;
+
+superClass
+	:	':' className -> className
+	;
+
+classFeature
+	:	propertyDeclaration | methodDeclaration | referenceDeclaration
+	;
+
+qualifierList
+	:	'[' qualifier ( ',' qualifier )* ']' -> ^(Qualifiers qualifier+)
+	;	
+	
+qualifier
+	:	qualifierName (qualifierParameter)? (':' flavor+)?
+		-> ^(qualifierName qualifierParameter? (flavor+)?)
+	;
+
+qualifierName 
+	:	IDENTIFIER | ASSOCIATION | INDICATION | SCHEMA
+		//Identifier + Meta qualifiers name
+	;
+
+qualifierParameter
+	:	'(' constantValue ')' -> constantValue 
+		| arrayInitializer -> arrayInitializer
+	;
+
+flavor
+	:	( ENABLEOVERRIDE
+		| DISABLEOVERRIDE
+		| RESTRICTED
+		| TOSUBCLASS
+		| TRANSLATABLE
+		)
+	;
+
+propertyDeclaration
+	:	(qualifierList)? dataType propertyName
+		(array)? (defaultValue)? ';'
+		-> ^(Property propertyName ^(Type ^(dataType array? )) ^(Default defaultValue?) qualifierList?)
+	;
+
+referenceDeclaration 
+	:	(qualifierList)? objectRef referenceName (defaultValue)? ';'
+		-> ^(Property referenceName ^(Type ^(Reference objectRef ))  ^(Default defaultValue?) qualifierList?)
+	;
+
+methodDeclaration
+	:	(qualifierList)? dataType methodName '(' parameterList? ')' ';'
+		-> ^(Method methodName ^(Returns dataType) parameterList? qualifierList?)
+	;
+	
+propertyName
+	:	IDENTIFIER
+	;
+
+referenceName
+	:	IDENTIFIER
+	;
+
+methodName
+	:	IDENTIFIER
+	;
+
+dataType:	(DT_UINT8 | DT_SINT8 | DT_UINT16 | DT_SINT16 |
+		DT_UINT32 | DT_SINT32 | DT_UINT64 | DT_SINT64 |
+		DT_REAL32 | DT_REAL64 | DT_CHAR16 |
+		DT_STR | DT_BOOL | DT_DATETIME)
+	;
+
+objectRef
+	:	className REF -> className
+	;
+	
+parameterList
+	:	parameter ( ',' parameter )* -> parameter+
+	;
+
+parameter
+	:	(qualifierList)? dataType parameterName (array)?
+			-> ^(Parameter parameterName ^(Type ^(dataType array?)) qualifierList?)
+		| 
+		(qualifierList)? objectRef parameterName (array)?
+			-> ^(Parameter parameterName ^(Reference objectRef) qualifierList?)
+	;
+
+parameterName
+	:	IDENTIFIER
+	;
+
+array	:	'[' (positiveDecimalValue)? ']' -> ^(Array positiveDecimalValue?)
+	;
+	
+positiveDecimalValue
+	:	DECIMAL_DIGIT+
+	;
+	
+defaultValue
+	:	'=' initializer -> initializer
+	;
+
+initializer
+	:	constantValue | arrayInitializer | referenceInitializer
+	;
+	
+arrayInitializer
+	:	'{' constantValue ( ',' constantValue)* '}' ->constantValue+
+	;
+	
+constantValue
+	:	integerValue
+		|  multi_line_string 
+		| real_value | CHAR_VALUE | 
+		boolean_value | NULL_VALUE
+	;
+
+boolean_value
+	:	TRUE | FALSE
+	;
+	
+integerValue
+	:	BINARY_VALUE | OCTAL_VALUE | DECIMAL_VALUE | HEX_VALUE
+	;
+	
+referenceInitializer
+	:	objectHandle | aliasIdentifier
+	;
+	
+objectHandle
+	:	'"' objectName '"'
+	;
+
+objectName
+	:	(namespacePath ':')? modelPath
+	;
+	
+namespacePath
+	:	(namespaceType '://')? namespaceHandle
+	;
+
+namespaceType
+	:	CHAR_VALUE+
+	;
+
+namespaceHandle
+	:	CHAR_VALUE+
+	;
+
+modelPath
+	:	className '.' keyValuePairList
+	;
+
+keyValuePairList
+	:	keyValuePair ( ',' keyValuePair )*
+	;
+
+keyValuePair
+	:	( propertyName '=' constantValue ) | ( referenceName '=' objectHandle )
+	;
+	
+qualifierDeclaration
+	:	QUALIFIER qualifierName qualifierType qualifierScope defaultFlavor? ';'
+		-> ^(QUALIFIER qualifierName qualifierType qualifierScope defaultFlavor?)
+	;
+	
+qualifierType
+	:	':' dataType (array)? (defaultValue)? -> ^(Type ^(dataType array? ) ^(Default defaultValue?))
+	;
+
+qualifierScope	:	',' SCOPE '(' metaElement ( ',' metaElement )* ')'
+	-> ^(SCOPE ^(metaElement)+) 
+;
+
+metaElement
+	:	CLASS | ASSOCIATION | INDICATION | QUALIFIER | 
+		PROPERTY | REFERENCE | METHOD | PARAMETER | ANY
+	;
+
+defaultFlavor
+	:	',' FLAVOR '(' flavor ( ',' flavor )* ')'
+		-> ^(FLAVOR ^(flavor)+) 
+	;
+
+instanceDeclaration
+	:	(qualifierList)? INSTANCE OF className alias?
+		'{' valueInitializer+ '}' ';'
+		-> ^(Instance ^(className ^(Alias alias)? (qualifierList)?  ^(Property valueInitializer)+))
+	;
+	
+valueInitializer
+	:	(qualifierList)? initializerName '=' initializer ';'
+		-> ^(initializerName (qualifierList)?) ^(Value initializer)
+	;
+	
+initializerName
+	:	IDENTIFIER
+	;
+		
+fileName:	STRING_VALUE
+	;
+
+multi_line_string
+	:	(STRING_VALUE)*
+	;
+
+BINARY_VALUE
+	:	
+		('+' | '-')? ('0'|'1')+ ( 'b' | 'B' )
+	;
+
+HEX_VALUE:	('+' | '-')? ( '0x' | '0X' ) ('0'..'9' | 'a'..'f' | 'A'..'F')+
+	;
+
+DECIMAL_VALUE
+	:	('+' | '-')? ('0'..'9')+ 
+	;
+
+OCTAL_VALUE
+	:	('+' | '-')? '0' ('0'|'1'|'2'|'3'|'4'|'5'|'6'|'7')+
+	;
+
+real_value
+	:	('+' | '-') DECIMAL_DIGIT* '.' DECIMAL_DIGIT+
+		( ('e' | 'E') ( '+' | '-')? DECIMAL_DIGIT+)?
+	;
+		
+
+WS      : (' '|'\t')+ {$channel=HIDDEN;}
+	;
+EOL	: '\r'? '\n' {$channel=HIDDEN;}
+	;
+SL_COMMENT
+    :   '//' ~('\n'|'\r')* EOL {$channel=HIDDEN;}
+    ;
+
+ML_COMMENT
+    :   '/*' ( options {greedy=false;} : . )* '*/' {$channel=HIDDEN;}
+    ;
+    
+
+ANY			:	'any';
+AS			:	'as';
+DISABLEOVERRIDE 
+			:		'disableoverride';
+DT_BOOL		:	'boolean';
+DT_CHAR16	:	'char16';
+DT_DATETIME	:	'datetime';
+DT_REAL32	:	'real32';
+DT_REAL64	:	'real64';
+DT_SINT16	:	'sint16';
+DT_SINT32	:	'sint32';
+DT_SINT64	:	'sint64';
+DT_SINT8	:	'sint8';
+DT_STR		:	'string';
+DT_UINT16	:	'uint16';
+DT_UINT32	:	'uint32';
+DT_UINT64	:	'uint64';
+DT_UINT8	:	'uint8';
+ENABLEOVERRIDE	:	'enableoverride';
+FALSE		:	'false';
+INSTANCE	:	'instance';
+METHOD		:	'method';
+NULL_VALUE	:	'null';
+OF			:	'of';
+PARAMETER	:	'parameter';
+REF			:	'ref';
+REFERENCE	:	'reference';
+RESTRICTED	:	'restricted';
+SCHEMA		:	'schema';
+TOSUBCLASS	:	'tosubclass';
+TRANSLATABLE:	'translatable';
+TRUE		:	'true';
+
+fragment
+DECIMAL_DIGIT
+	:	('0'..'9');
+		
+CHAR_VALUE
+	:	'"' (ESC | ~('\\'|'"')) '"'
+	;
+	
+STRING_CHAR
+	:	 ('\u0001'..'\uFFEF') | ESC
+	;
+
+STRING_VALUE
+	:	('"' ( options { greedy = false; } : STRING_CHAR )* '"')+;
+
+ESC	
+	:	'\\'
+		( 'n'
+		| 't'
+		| 'v'   	
+		| 'b'
+		| 'r'
+		| 'f'
+		| 'a'  	
+		| '\\'
+		| '?'
+		| '\''
+		| '"'
+		| ('0' | '1' | '2' | '3') ('0'..'7')?
+		| 'x' ('0'..'9' | 'a'..'f' | 'A'..'F')?
+		)
+	;
+
+IDENTIFIER	:	( '\u0041'..'\u005A'|'\u0061'..'\u007A' )
+			( '\u005F'|'\u0030'..'\u0039'|'\u0041'..'\u005A'|'\u0061'..'\u007A' )*
+	 ; 

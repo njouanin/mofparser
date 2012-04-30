@@ -1,0 +1,3 @@
+$header$
+
+#pragma $directive$ (${"$param$"}$)
