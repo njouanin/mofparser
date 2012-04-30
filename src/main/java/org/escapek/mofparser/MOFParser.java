@@ -528,8 +528,9 @@ public class MOFParser {
 	/**
 	 * Get the flavor type with the given name.
 	 * The name is supposed to be in MOF syntax
-	 * @param flavorName flavor name to find
-	 * @return
+	 * @param typeName flavor name to find
+	 * @return The flavor enumeration value or null if no enumeration value with <code>typeName</code>
+	 * was found.
 	 */
 	public FlavorType getFlavorType(String typeName) {
 		if(typeName == null) {
@@ -548,8 +549,9 @@ public class MOFParser {
 	/**
 	 * Get the scope type with the given name.
 	 * The name is supposed to be in MOF syntax
-	 * @param scopeName name of the scope to find
-	 * @return
+	 * @param typeName name of the scope to find
+	 * @return The scope enumeration value or null if no scope value with <code>typeName</code>
+	 * was found.
 	 */
 	public ScopeType getScopeType(String typeName) {
 		if(typeName == null) {

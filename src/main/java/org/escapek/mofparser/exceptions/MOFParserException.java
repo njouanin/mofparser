@@ -168,7 +168,7 @@ public class MOFParserException extends Exception {
 
 	/**
 	 * Get exception first argument, if any.
-	 * @return
+	 * @return exception first argument
 	 */
 	public Object getArg1() {
 		return arg1;
@@ -180,7 +180,7 @@ public class MOFParserException extends Exception {
 
 	/**
 	 * Get exception second argument, if any.
-	 * @return
+	 * @return exception second argument
 	 */
 	public Object getArg2() {
 		return arg2;

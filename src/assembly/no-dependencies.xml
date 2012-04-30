@@ -22,7 +22,7 @@
 		</fileSet>
 		<!-- docs -->
 		<fileSet>
-			<directory>/target/site</directory>
+			<directory>target/site</directory>
             <outputDirectory>docs</outputDirectory>
         </fileSet>
 	</fileSets>
