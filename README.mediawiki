@@ -6,3 +6,7 @@ This project provides a library for parsing file written using the [http://www.d
  
 === Using ===
 Add <code>org.escapek:mofparser:0.3</code> to your project dependencies
+
+=== Documentation ===
+
+[http://www.beerfactory.org/wiki/display/MPL/MOF+parser+library See wiki]
